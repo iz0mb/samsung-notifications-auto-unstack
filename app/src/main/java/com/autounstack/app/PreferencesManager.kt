@@ -3,7 +3,7 @@ package com.autounstack.app
 import android.content.Context
 
 class PreferencesManager(context: Context) {
-    private val prefs = context.getSharedPreferences("auto_unstack_prefs", Context.MODE_PRIVATE)
+    private val prefs = context.applicationContext.getSharedPreferences("auto_unstack_prefs", Context.MODE_PRIVATE)
 
     companion object {
         private const val KEY_ENABLED = "service_enabled"

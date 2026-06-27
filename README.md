@@ -90,7 +90,7 @@ On Samsung devices, battery optimization may block the Accessibility Service. If
 - Android Studio Koala or later
 - Android SDK 29+ (for compilation)
 - Kotlin 2.0+
-- Gradle 9.4+
+- Gradle 8.6+ (or the bundled `./gradlew` wrapper)
 
 ### Building Debug APK
 
