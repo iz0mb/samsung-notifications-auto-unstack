@@ -7,15 +7,15 @@ val releaseVersionName = System.getenv("VERSION_NAME")
     ?: project.findProperty("VERSION_NAME")?.toString()
     ?: "1.0"
 
-val releaseKeystorePath = System.getenv("KEYSTORE_PATH")
-    ?: project.findProperty("KEYSTORE_PATH")?.toString()
-val releaseKeystorePassword = System.getenv("KEYSTORE_PASSWORD")
-    ?: project.findProperty("KEYSTORE_PASSWORD")?.toString()
-val releaseKeyAlias = System.getenv("KEY_ALIAS")
-    ?: project.findProperty("KEY_ALIAS")?.toString()
-    ?: "auto-unstack"
-val releaseKeyPassword = System.getenv("KEY_PASSWORD")
-    ?: project.findProperty("KEY_PASSWORD")?.toString()
+fun readSigningValue(name: String): String? = (
+    System.getenv(name)
+        ?: project.findProperty(name)?.toString()
+    )?.trim()?.takeIf { it.isNotEmpty() }
+
+val releaseKeystorePath = readSigningValue("KEYSTORE_PATH")
+val releaseKeystorePassword = readSigningValue("KEYSTORE_PASSWORD")
+val releaseKeyAlias = readSigningValue("KEY_ALIAS") ?: "auto-unstack"
+val releaseKeyPassword = readSigningValue("KEY_PASSWORD")
 val releaseKeystoreFile = releaseKeystorePath?.takeIf { it.isNotBlank() }?.let { file(it) }
 val hasReleaseSigning = releaseKeystoreFile?.isFile == true &&
     !releaseKeystorePassword.isNullOrBlank() &&
