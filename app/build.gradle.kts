@@ -7,6 +7,21 @@ val releaseVersionName = System.getenv("VERSION_NAME")
     ?: project.findProperty("VERSION_NAME")?.toString()
     ?: "1.0"
 
+val releaseKeystorePath = System.getenv("KEYSTORE_PATH")
+    ?: project.findProperty("KEYSTORE_PATH")?.toString()
+val releaseKeystorePassword = System.getenv("KEYSTORE_PASSWORD")
+    ?: project.findProperty("KEYSTORE_PASSWORD")?.toString()
+val releaseKeyAlias = System.getenv("KEY_ALIAS")
+    ?: project.findProperty("KEY_ALIAS")?.toString()
+    ?: "auto-unstack"
+val releaseKeyPassword = System.getenv("KEY_PASSWORD")
+    ?: project.findProperty("KEY_PASSWORD")?.toString()
+val releaseKeystoreFile = releaseKeystorePath?.let(::file)
+val hasReleaseSigning = releaseKeystoreFile?.isFile == true &&
+    !releaseKeystorePassword.isNullOrBlank() &&
+    !releaseKeyAlias.isNullOrBlank() &&
+    !releaseKeyPassword.isNullOrBlank()
+
 plugins {
     id("com.android.application") version "8.4.1"
     id("org.jetbrains.kotlin.android") version "2.0.0"
@@ -26,18 +41,22 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            storeFile = file(System.getenv("KEYSTORE_PATH") ?: project.findProperty("KEYSTORE_PATH") as? String ?: "auto-unstack-key.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: project.findProperty("KEYSTORE_PASSWORD") as? String ?: ""
-            keyAlias = System.getenv("KEY_ALIAS") ?: project.findProperty("KEY_ALIAS") as? String ?: "auto-unstack"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: project.findProperty("KEY_PASSWORD") as? String ?: ""
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = releaseKeystoreFile
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
         }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

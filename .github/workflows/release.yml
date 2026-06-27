@@ -46,16 +46,23 @@ jobs:
           java-version: "17"
           cache: gradle
 
-      - name: Decode signing keystore
+      - name: Prepare signing configuration
+        id: signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -z "${KEYSTORE_BASE64}" ]; then
-            echo "Missing KEYSTORE_BASE64 secret."
-            exit 1
+          if [ -n "${KEYSTORE_BASE64}" ] && [ -n "${KEYSTORE_PASSWORD}" ] && [ -n "${KEY_ALIAS}" ] && [ -n "${KEY_PASSWORD}" ]; then
+            printf '%s' "${KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/auto-unstack-key.jks"
+            echo "signed=true" >> "${GITHUB_OUTPUT}"
+            echo "keystore_path=${RUNNER_TEMP}/auto-unstack-key.jks" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Signing secrets are not fully configured; building an unsigned release APK."
+            echo "signed=false" >> "${GITHUB_OUTPUT}"
+            echo "keystore_path=" >> "${GITHUB_OUTPUT}"
           fi
-
-          printf '%s' "${KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/auto-unstack-key.jks"
 
       - name: Resolve release metadata
         id: metadata
@@ -79,7 +86,7 @@ jobs:
 
       - name: Build release APK
         env:
-          KEYSTORE_PATH: ${{ runner.temp }}/auto-unstack-key.jks
+          KEYSTORE_PATH: ${{ steps.signing.outputs.keystore_path }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -87,11 +94,28 @@ jobs:
           VERSION_CODE: ${{ steps.metadata.outputs.version_code }}
         run: ./gradlew assembleRelease
 
+      - name: Resolve APK artifact path
+        id: apk
+        run: |
+          signed_apk="app/build/outputs/apk/release/app-release.apk"
+          unsigned_apk="app/build/outputs/apk/release/app-release-unsigned.apk"
+
+          if [ -f "${signed_apk}" ]; then
+            apk_path="${signed_apk}"
+          elif [ -f "${unsigned_apk}" ]; then
+            apk_path="${unsigned_apk}"
+          else
+            echo "No release APK was produced."
+            exit 1
+          fi
+
+          echo "path=${apk_path}" >> "${GITHUB_OUTPUT}"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release-${{ steps.metadata.outputs.version_name }}
-          path: app/build/outputs/apk/release/app-release.apk
+          path: ${{ steps.apk.outputs.path }}
 
       - name: Publish GitHub release
         if: github.event_name == 'push' || inputs.create_release
@@ -99,7 +123,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${{ steps.metadata.outputs.tag_name }}" \
-            app/build/outputs/apk/release/app-release.apk \
+            "${{ steps.apk.outputs.path }}" \
             --target "${GITHUB_SHA}" \
             --title "Auto Unstack ${{ steps.metadata.outputs.version_name }}" \
             --notes "Release built from ${GITHUB_SHA}."
