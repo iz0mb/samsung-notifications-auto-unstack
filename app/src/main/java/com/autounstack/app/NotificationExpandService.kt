@@ -11,6 +11,7 @@ class NotificationExpandService : AccessibilityService() {
     private val TAG = "NotificationExpandService"
     private var lastGlobalClickTime = 0L
     private val GLOBAL_CLICK_COOLDOWN_MS = 450L
+    private val MAX_PARENT_DEPTH = 5
     private lateinit var preferencesManager: PreferencesManager
 
     override fun onServiceConnected() {
@@ -36,39 +37,53 @@ class NotificationExpandService : AccessibilityService() {
             return
         }
 
-        val root = rootInActiveWindow
-        if (root == null) {
-            Log.d(TAG, "No active window root available for event type ${event.eventType}")
-            return
-        }
-
-        // Only handle events coming from SystemUI
+        // Check package before fetching the root to avoid leaking an AccessibilityNodeInfo
+        // on events we would discard anyway.
         val evPkg = event.packageName?.toString()
         if (evPkg == null || evPkg != "com.android.systemui") {
             Log.d(TAG, "Ignoring event from package=$evPkg")
             return
         }
 
-        val screenBounds = Rect()
-        root.getBoundsInScreen(screenBounds)
-        val screenWidth = screenBounds.width().takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        val root = rootInActiveWindow
+        if (root == null) {
+            Log.d(TAG, "No active window root available for event type ${event.eventType}")
+            return
+        }
 
-        Log.d(TAG, "SystemUI event; scanning entire node tree; eventType=${event.eventType}, screenWidth=$screenWidth")
+        try {
+            val screenBounds = Rect()
+            root.getBoundsInScreen(screenBounds)
+            val screenWidth = screenBounds.width().takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
 
-        scanNodeRecursive(root, screenWidth)
+            Log.d(TAG, "SystemUI event; scanning entire node tree; eventType=${event.eventType}, screenWidth=$screenWidth")
+
+            scanAndExpandNodes(root, screenWidth)
+        } finally {
+            root.recycle()
+        }
     }
 
     override fun onInterrupt() {
         Log.d(TAG, "Accessibility service interrupted")
     }
 
-    private fun scanNodeRecursive(node: AccessibilityNodeInfo, screenWidth: Int) {
-        processNode(node, screenWidth)
+    private fun scanAndExpandNodes(root: AccessibilityNodeInfo, screenWidth: Int) {
+        // Use an explicit stack instead of recursion to avoid StackOverflowError on deep trees.
+        processNode(root, screenWidth)
 
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            scanNodeRecursive(child, screenWidth)
-            child.recycle()
+        val stack = ArrayDeque<AccessibilityNodeInfo>()
+        for (i in 0 until root.childCount) {
+            root.getChild(i)?.let { stack.addLast(it) }
+        }
+
+        while (stack.isNotEmpty()) {
+            val node = stack.removeLast()
+            processNode(node, screenWidth)
+            for (i in 0 until node.childCount) {
+                node.getChild(i)?.let { stack.addLast(it) }
+            }
+            node.recycle()
         }
     }
 
@@ -99,13 +114,20 @@ class NotificationExpandService : AccessibilityService() {
             return
         }
 
+        // findClickableParent returns `node` itself when it is directly clickable, or a new
+        // parent node otherwise. We own any newly-obtained node and must recycle it.
+        val isNewNode = clickableParent !== node
         Log.d(TAG, "Attempting click on clickable parent for numeric badge: text=$text")
-        val clicked = clickableParent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-        if (clicked) {
-            lastGlobalClickTime = SystemClock.uptimeMillis()
-            Log.d(TAG, "Click performed")
-        } else {
-            Log.d(TAG, "Click failed for numeric badge: text=$text")
+        try {
+            val clicked = clickableParent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            if (clicked) {
+                lastGlobalClickTime = SystemClock.uptimeMillis()
+                Log.d(TAG, "Click performed")
+            } else {
+                Log.d(TAG, "Click failed for numeric badge: text=$text")
+            }
+        } finally {
+            if (isNewNode) clickableParent.recycle()
         }
     }
 
@@ -128,14 +150,25 @@ class NotificationExpandService : AccessibilityService() {
     }
 
     private fun findClickableParent(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        var current: AccessibilityNodeInfo? = node
-        while (current != null) {
+        if (node.isClickable) {
+            Log.d(TAG, "Found clickable parent: class=${node.className} clickable=true")
+            return node
+        }
+
+        // Traverse ancestors, recycling each non-clickable intermediate node we obtain.
+        var current: AccessibilityNodeInfo? = node.parent
+        var depth = 0
+        while (current != null && depth < MAX_PARENT_DEPTH) {
             if (current.isClickable) {
                 Log.d(TAG, "Found clickable parent: class=${current.className} clickable=true")
-                return current
+                return current  // caller is responsible for recycling this node
             }
-            current = current.parent
+            val parent = current.parent
+            current.recycle()
+            current = parent
+            depth++
         }
+        current?.recycle()
         return null
     }
 }
