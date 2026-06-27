@@ -137,7 +137,7 @@ The repository includes a `Release APK` GitHub Actions workflow for publishing a
 4. Provide a `version_name` such as `1.0.1`
 5. Optionally provide `version_code`; otherwise the workflow uses the GitHub run number
 
-If the signing secrets are configured, the workflow builds a signed `app-release.apk`. Otherwise it falls back to an unsigned release APK so forks can still create a release and download the artifact.
+If the signing secrets are configured, the workflow builds a release APK signed with your keystore. Otherwise it falls back to the debug keystore so the APK is always signed and installable on any device.
 
 ## Tech Stack
 

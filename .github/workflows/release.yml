@@ -97,14 +97,9 @@ jobs:
       - name: Resolve APK artifact path
         id: apk
         run: |
-          signed_apk="app/build/outputs/apk/release/app-release.apk"
-          unsigned_apk="app/build/outputs/apk/release/app-release-unsigned.apk"
+          apk_path="app/build/outputs/apk/release/app-release.apk"
 
-          if [ -f "${signed_apk}" ]; then
-            apk_path="${signed_apk}"
-          elif [ -f "${unsigned_apk}" ]; then
-            apk_path="${unsigned_apk}"
-          else
+          if [ ! -f "${apk_path}" ]; then
             echo "No release APK was produced."
             exit 1
           fi
