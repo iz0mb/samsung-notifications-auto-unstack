@@ -100,17 +100,49 @@ On Samsung devices, battery optimization may block the Accessibility Service. If
 
 Output: `app/build/outputs/apk/debug/app-debug.apk`
 
-### Building Release APK
+### Creating a GitHub Release APK
 
-First, create a keystore (if you haven't already):
+The repository includes a `Release APK` GitHub Actions workflow for publishing
+a release from `main`.
+
+**One-time signing setup (browser only — no local tools required):**
+
+1. Open **Actions** → **Setup Signing**
+2. Click **Run workflow** → **Run workflow**
+
+That's it. The workflow generates a release keystore and saves all four signing
+secrets to the repository automatically. You only need to do this once.
+
+**Publish a release:**
+
+1. Open **Actions** → **Release APK**
+2. Click **Run workflow** from `main`
+3. Provide a `version_name` such as `1.0.1`
+4. Optionally provide `version_code`; otherwise the workflow uses the GitHub run number
+
+The workflow signs the APK with your release keystore and attaches it to a
+GitHub release automatically.
+
+### Building Release APK Locally
+
+**One-time signing setup** (Linux/macOS):
 
 ```bash
-keytool -genkey -v -keystore auto-unstack-key.jks \
-  -keyalg RSA -keysize 2048 -validity 10000 \
-  -alias auto-unstack
+./scripts/setup-signing.sh
 ```
 
-Then, set environment variables and build:
+Windows (PowerShell):
+
+```powershell
+.\scripts\setup-signing.ps1
+```
+
+These scripts generate a release keystore and push all four signing secrets
+(`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) directly
+to the repository via the [GitHub CLI](https://cli.github.com). Run `gh auth login`
+first if you haven't already.
+
+After the one-time setup, build locally with:
 
 ```bash
 export KEYSTORE_PATH=auto-unstack-key.jks
@@ -123,21 +155,8 @@ export KEY_PASSWORD=your_key_password
 
 Output: `app/build/outputs/apk/release/app-release.apk`
 
-### Creating a GitHub Release APK
-
-The repository includes a `Release APK` GitHub Actions workflow for publishing a release from `main`.
-
-1. Optionally add repository secrets for a signed APK:
-   - `KEYSTORE_BASE64` — Base64-encoded keystore file
-   - `KEYSTORE_PASSWORD`
-   - `KEY_ALIAS`
-   - `KEY_PASSWORD`
-2. Open **Actions** → **Release APK**
-3. Run the workflow from `main`
-4. Provide a `version_name` such as `1.0.1`
-5. Optionally provide `version_code`; otherwise the workflow uses the GitHub run number
-
-If the signing secrets are configured, the workflow builds a signed `app-release.apk`. Otherwise it falls back to an unsigned release APK so forks can still create a release and download the artifact.
+> **Fallback:** If no signing secrets are configured the build falls back to the
+> debug keystore automatically, so the APK is always signed and installable.
 
 ## Tech Stack
 
