@@ -8,10 +8,13 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 
 class NotificationExpandService : AccessibilityService() {
-    private val TAG = "NotificationExpandService"
     private var lastGlobalClickTime = 0L
-    private val GLOBAL_CLICK_COOLDOWN_MS = 450L
     private lateinit var preferencesManager: PreferencesManager
+
+    private companion object {
+        private const val TAG = "NotificationExpandService"
+        private const val GLOBAL_CLICK_COOLDOWN_MS = 450L
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -20,6 +23,10 @@ class NotificationExpandService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        if (!::preferencesManager.isInitialized) {
+            preferencesManager = PreferencesManager(this)
+        }
+
         if (!preferencesManager.isServiceEnabled()) {
             Log.d(TAG, "Service disabled; ignoring event")
             return
@@ -36,12 +43,6 @@ class NotificationExpandService : AccessibilityService() {
             return
         }
 
-        val root = rootInActiveWindow
-        if (root == null) {
-            Log.d(TAG, "No active window root available for event type ${event.eventType}")
-            return
-        }
-
         // Only handle events coming from SystemUI
         val evPkg = event.packageName?.toString()
         if (evPkg == null || evPkg != "com.android.systemui") {
@@ -49,46 +50,64 @@ class NotificationExpandService : AccessibilityService() {
             return
         }
 
-        val screenBounds = Rect()
-        root.getBoundsInScreen(screenBounds)
-        val screenWidth = screenBounds.width().takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        val root = rootInActiveWindow
+        if (root == null) {
+            Log.d(TAG, "No active window root available for event type ${event.eventType}")
+            return
+        }
 
-        Log.d(TAG, "SystemUI event; scanning entire node tree; eventType=${event.eventType}, screenWidth=$screenWidth")
+        try {
+            val screenBounds = Rect()
+            root.getBoundsInScreen(screenBounds)
+            val screenWidth = screenBounds.width().takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
 
-        scanNodeRecursive(root, screenWidth)
+            Log.d(TAG, "SystemUI event; scanning node tree; eventType=${event.eventType}, screenWidth=$screenWidth")
+            scanNodeRecursive(root, screenWidth)
+        } finally {
+            root.recycle()
+        }
     }
 
     override fun onInterrupt() {
         Log.d(TAG, "Accessibility service interrupted")
     }
 
-    private fun scanNodeRecursive(node: AccessibilityNodeInfo, screenWidth: Int) {
-        processNode(node, screenWidth)
+    private fun scanNodeRecursive(node: AccessibilityNodeInfo, screenWidth: Int): Boolean {
+        if (processNode(node, screenWidth)) {
+            return true
+        }
 
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
-            scanNodeRecursive(child, screenWidth)
-            child.recycle()
+            try {
+                if (scanNodeRecursive(child, screenWidth)) {
+                    return true
+                }
+            } finally {
+                child.recycle()
+            }
         }
+
+        return false
     }
 
 
-    private fun processNode(node: AccessibilityNodeInfo, screenWidth: Int) {
+    private fun processNode(node: AccessibilityNodeInfo, screenWidth: Int): Boolean {
         val text = node.text?.toString()
-        if (!isNumericBadgeText(text)) {
-            return
+        if (!NotificationHeuristics.isNumericBadgeText(text)) {
+            return false
         }
 
         if (!node.isVisibleToUser) {
             Log.d(TAG, "Skipping numeric node because it is not visible: text=$text")
-            return
+            return false
         }
 
         val bounds = Rect()
         node.getBoundsInScreen(bounds)
-        if (!isNearRightSide(bounds, screenWidth)) {
+        if (bounds.isEmpty || !NotificationHeuristics.isNearRightSide(bounds.right, screenWidth)) {
             Log.d(TAG, "Skipping numeric node because it is not near right side: text=$text bounds=$bounds")
-            return
+            return false
         }
 
         Log.d(TAG, "Detected numeric badge node: text=$text bounds=$bounds")
@@ -96,35 +115,26 @@ class NotificationExpandService : AccessibilityService() {
         val clickableParent = findClickableParent(node)
         if (clickableParent == null) {
             Log.d(TAG, "No clickable parent found for numeric badge: text=$text bounds=$bounds")
-            return
+            return false
         }
 
-        Log.d(TAG, "Attempting click on clickable parent for numeric badge: text=$text")
-        val clicked = clickableParent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-        if (clicked) {
-            lastGlobalClickTime = SystemClock.uptimeMillis()
-            Log.d(TAG, "Click performed")
-        } else {
+        try {
+            Log.d(TAG, "Attempting click on clickable parent for numeric badge: text=$text")
+            val clicked = clickableParent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            if (clicked) {
+                lastGlobalClickTime = SystemClock.uptimeMillis()
+                Log.d(TAG, "Click performed")
+                return true
+            }
+
             Log.d(TAG, "Click failed for numeric badge: text=$text")
+        } finally {
+            if (clickableParent != node) {
+                clickableParent.recycle()
+            }
         }
-    }
 
-    private fun isNumericBadgeText(text: String?): Boolean {
-        if (text.isNullOrBlank()) {
-            return false
-        }
-        val trimmed = text.trim()
-        val isNumeric = trimmed.matches(Regex("^[0-9]+$"))
-        Log.d(TAG, "Numeric badge text check: text=\"$trimmed\" isNumeric=$isNumeric")
-        return isNumeric
-    }
-
-    private fun isNearRightSide(bounds: Rect, screenWidth: Int): Boolean {
-        if (bounds.isEmpty) {
-            return false
-        }
-        val threshold = (screenWidth * 0.75f).toInt()
-        return bounds.right >= threshold
+        return false
     }
 
     private fun findClickableParent(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
@@ -134,7 +144,11 @@ class NotificationExpandService : AccessibilityService() {
                 Log.d(TAG, "Found clickable parent: class=${current.className} clickable=true")
                 return current
             }
-            current = current.parent
+            val parent = current.parent
+            if (current != node) {
+                current.recycle()
+            }
+            current = parent
         }
         return null
     }
