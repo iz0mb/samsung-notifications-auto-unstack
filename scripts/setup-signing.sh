@@ -50,7 +50,7 @@ done
 # Generate secure random passwords
 # ---------------------------------------------------------------------------
 KEYSTORE_PASSWORD="$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)"
-KEY_PASSWORD="$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)"
+KEY_PASSWORD="${KEYSTORE_PASSWORD}"
 
 # ---------------------------------------------------------------------------
 # Generate keystore

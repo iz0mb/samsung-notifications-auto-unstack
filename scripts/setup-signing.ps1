@@ -58,7 +58,7 @@ try {
     }
 
     $KeystorePassword = New-RandomPassword 32
-    $KeyPassword      = New-RandomPassword 32
+    $KeyPassword      = $KeystorePassword
 
     # -----------------------------------------------------------------------
     # Generate keystore

@@ -150,7 +150,7 @@ After the one-time setup, build locally with:
 export KEYSTORE_PATH=auto-unstack-key.jks
 export KEYSTORE_PASSWORD=your_password
 export KEY_ALIAS=auto-unstack
-export KEY_PASSWORD=your_key_password
+export KEY_PASSWORD=your_password
 
 ./gradlew assembleRelease
 ```

@@ -52,9 +52,8 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -n "${KEYSTORE_BASE64}" ] && [ -n "${KEYSTORE_PASSWORD}" ] && [ -n "${KEY_ALIAS}" ] && [ -n "${KEY_PASSWORD}" ]; then
+          if [ -n "${KEYSTORE_BASE64}" ] && [ -n "${KEYSTORE_PASSWORD}" ] && [ -n "${KEY_ALIAS}" ]; then
             printf '%s' "${KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/auto-unstack-key.jks"
             echo "signed=true" >> "${GITHUB_OUTPUT}"
             echo "keystore_path=${RUNNER_TEMP}/auto-unstack-key.jks" >> "${GITHUB_OUTPUT}"
@@ -89,7 +88,7 @@ jobs:
           KEYSTORE_PATH: ${{ steps.signing.outputs.keystore_path }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           VERSION_NAME: ${{ steps.metadata.outputs.version_name }}
           VERSION_CODE: ${{ steps.metadata.outputs.version_code }}
         run: ./gradlew assembleRelease

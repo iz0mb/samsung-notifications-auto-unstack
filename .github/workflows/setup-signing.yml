@@ -32,7 +32,7 @@ jobs:
 
           # Generate cryptographically random passwords
           KEYSTORE_PASSWORD="$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)"
-          KEY_PASSWORD="$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)"
+          KEY_PASSWORD="${KEYSTORE_PASSWORD}"
 
           # Generate PKCS12 keystore (100-year validity, no interactive prompts)
           keytool -genkeypair \
