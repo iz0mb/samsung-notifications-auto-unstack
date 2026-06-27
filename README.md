@@ -55,7 +55,7 @@ The app only accesses:
 
 ### From APK
 
-1. Download the latest `app-release.apk` from [Releases](https://github.com/Junith-K/auto-unstack/releases)
+1. Download the latest `app-release.apk` from [Releases](https://github.com/iz0mb/samsung-notifications-auto-unstack/releases)
 2. Enable **Unknown Sources** in Settings → Security (if needed)
 3. Install the APK on your device
 4. Open Auto Unstack and enable the service
@@ -122,6 +122,22 @@ export KEY_PASSWORD=your_key_password
 ```
 
 Output: `app/build/outputs/apk/release/app-release.apk`
+
+### Creating a GitHub Release APK
+
+The repository includes a `Release APK` GitHub Actions workflow for publishing a signed release from `main`.
+
+1. Add repository secrets:
+   - `KEYSTORE_BASE64` — Base64-encoded keystore file
+   - `KEYSTORE_PASSWORD`
+   - `KEY_ALIAS`
+   - `KEY_PASSWORD`
+2. Open **Actions** → **Release APK**
+3. Run the workflow from `main`
+4. Provide a `version_name` such as `1.0.1`
+5. Optionally provide `version_code`; otherwise the workflow uses the GitHub run number
+
+The workflow builds `app-release.apk`, uploads it as an artifact, and publishes a GitHub release.
 
 ## Tech Stack
 
