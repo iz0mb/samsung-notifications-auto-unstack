@@ -100,7 +100,30 @@ On Samsung devices, battery optimization may block the Accessibility Service. If
 
 Output: `app/build/outputs/apk/debug/app-debug.apk`
 
-### Building Release APK
+### Creating a GitHub Release APK
+
+The repository includes a `Release APK` GitHub Actions workflow for publishing
+a release from `main`.
+
+**One-time signing setup (browser only — no local tools required):**
+
+1. Open **Actions** → **Setup Signing**
+2. Click **Run workflow** → **Run workflow**
+
+That's it. The workflow generates a release keystore and saves all four signing
+secrets to the repository automatically. You only need to do this once.
+
+**Publish a release:**
+
+1. Open **Actions** → **Release APK**
+2. Click **Run workflow** from `main`
+3. Provide a `version_name` such as `1.0.1`
+4. Optionally provide `version_code`; otherwise the workflow uses the GitHub run number
+
+The workflow signs the APK with your release keystore and attaches it to a
+GitHub release automatically.
+
+### Building Release APK Locally
 
 **One-time signing setup** (Linux/macOS):
 
@@ -134,24 +157,6 @@ Output: `app/build/outputs/apk/release/app-release.apk`
 
 > **Fallback:** If no signing secrets are configured the build falls back to the
 > debug keystore automatically, so the APK is always signed and installable.
-
-### Creating a GitHub Release APK
-
-The repository includes a `Release APK` GitHub Actions workflow for publishing
-a release from `main`.
-
-**Setup (one time):** Run the signing setup script above. That's it — all
-secrets are wired automatically.
-
-**Publish a release:**
-
-1. Open **Actions** → **Release APK**
-2. Click **Run workflow** from `main`
-3. Provide a `version_name` such as `1.0.1`
-4. Optionally provide `version_code`; otherwise the workflow uses the GitHub run number
-
-The workflow signs the APK with your release keystore and attaches it to a
-GitHub release automatically.
 
 ## Tech Stack
 
