@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: write
   contents: read
 
 jobs:
@@ -20,8 +19,14 @@ jobs:
 
       - name: Generate keystore and signing secrets
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.SIGNING_REPO_TOKEN }}
         run: |
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "SIGNING_REPO_TOKEN is not configured."
+            echo "Add a repository secret named SIGNING_REPO_TOKEN with a PAT that can manage Actions secrets for this repository."
+            exit 1
+          fi
+
           ALIAS="auto-unstack"
           KEYSTORE_FILE="${RUNNER_TEMP}/auto-unstack-key.jks"
 

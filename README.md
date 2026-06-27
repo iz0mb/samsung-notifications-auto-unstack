@@ -105,13 +105,15 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 The repository includes a `Release APK` GitHub Actions workflow for publishing
 a release from `main`.
 
-**One-time signing setup (browser only — no local tools required):**
+**One-time signing setup (GitHub Actions):**
 
-1. Open **Actions** → **Setup Signing**
-2. Click **Run workflow** → **Run workflow**
+1. Create a repository secret named `SIGNING_REPO_TOKEN` that contains a GitHub
+   Personal Access Token (PAT) with permission to manage repository Actions secrets.
+2. Open **Actions** → **Setup Signing**
+3. Click **Run workflow** → **Run workflow**
 
-That's it. The workflow generates a release keystore and saves all four signing
-secrets to the repository automatically. You only need to do this once.
+The workflow generates a release keystore and saves all four signing secrets to
+the repository automatically. You only need to do this once.
 
 **Publish a release:**
 
