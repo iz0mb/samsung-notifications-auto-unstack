@@ -1,3 +1,12 @@
+val releaseVersionCode = (
+    System.getenv("VERSION_CODE")
+        ?: project.findProperty("VERSION_CODE")?.toString()
+    )?.toIntOrNull() ?: 1
+
+val releaseVersionName = System.getenv("VERSION_NAME")
+    ?: project.findProperty("VERSION_NAME")?.toString()
+    ?: "1.0"
+
 plugins {
     id("com.android.application") version "8.4.1"
     id("org.jetbrains.kotlin.android") version "2.0.0"
@@ -12,8 +21,8 @@ android {
         applicationId = "com.autounstack.app"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = releaseVersionCode
+        versionName = releaseVersionName
     }
 
     signingConfigs {

@@ -41,4 +41,6 @@ local.properties
 *~
 
 # GitHub
-.github/
+.github/*
+!.github/workflows/
+!.github/workflows/**
