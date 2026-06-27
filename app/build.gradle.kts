@@ -16,7 +16,7 @@ val releaseKeyAlias = System.getenv("KEY_ALIAS")
     ?: "auto-unstack"
 val releaseKeyPassword = System.getenv("KEY_PASSWORD")
     ?: project.findProperty("KEY_PASSWORD")?.toString()
-val releaseKeystoreFile = releaseKeystorePath?.let { file(it) }
+val releaseKeystoreFile = releaseKeystorePath?.takeIf { it.isNotBlank() }?.let { file(it) }
 val hasReleaseSigning = releaseKeystoreFile?.isFile == true &&
     !releaseKeystorePassword.isNullOrBlank() &&
     !releaseKeyAlias.isNullOrBlank() &&
